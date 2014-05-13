@@ -4,7 +4,7 @@ from urllib import urlretrieve
 from os import path, getcwd, chdir
 from datetime import datetime
 from base64 import b64decode
-from jinja2 import Environment, FileSystemLoader
+from lib.jinja2 import Environment, FileSystemLoader
 
 from lib import sh
 from lib.helpers import (
