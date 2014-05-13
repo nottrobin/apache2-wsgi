@@ -1,0 +1,58 @@
+options:
+    # Mandatory
+    # ===
+    app_tgz_url:
+        description: "A url where a gzipped tarball of the application files can be downloaded"
+
+    # Optional
+    # ===
+    wsgi_file_path:
+        default: "app.py"
+        description: "The location (within the project) of the WSGI script"
+
+    apt_dependencies:
+        default: ""
+        description: "Space separated list of extra apt packages to be installed."
+
+    ssl_keyfile:
+        default: ""
+        description: "Base64 encoded keyfile for SSL"
+
+    ssl_certificate:
+        default: ""
+        description: "Base64 encoded certificate file for SSL"
+
+    server_name:
+        default: "*"
+        description: "The servername for inclusion in the Apache configuration"
+
+    static_path:
+        default: "static"
+        description: "The path to the static folder within the application"
+
+    static_url_path:
+        default: "static"
+        description: "The URL path to access static files"
+
+    download_dependencies:
+        default: False
+        type: Boolean
+        description: "Try to download python and ruby dependencies?"
+
+    pip_requirements_path:
+        default: "requirements.txt"
+        description: |
+            A path (within the project) to pip requirements file
+            - set this to blank to prevent installing from PyPi
+
+    pip_dependencies_path:
+        default: ""
+        description: "A path (within the project) to python dependencies"
+
+    gem_dependencies_path:
+        default: ""
+        description: "A path (within the project) to ruby dependencies"
+
+    custom_apache_conf_template_path:
+        default: ""
+        description: "A path to a custom template file for apache configuration"
