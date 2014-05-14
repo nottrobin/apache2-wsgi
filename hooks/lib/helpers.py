@@ -1,11 +1,7 @@
 import sh
 from os import path, pardir
 from urllib2 import urlopen, URLError
-# from charmhelpers.core.host import log
-
-
-def log(message):
-    print message
+from charmhelpers.core.host import log
 
 
 def create_dir(dir_path):
@@ -54,3 +50,11 @@ def parent_dir(dir_path):
         dir_path = path.dirname(dir_path)
 
     return path.abspath(path.join(dir_path, pardir))
+
+
+def run(sh_function, *args, **kwargs):
+    """
+    Run command with logging
+    """
+
+    log(str(sh_function(*args, **kwargs)))

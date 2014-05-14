@@ -1,18 +1,23 @@
 #!/usr/bin/env python
 
+import sys
 from urllib import urlretrieve
 from os import path, getcwd, chdir
 from datetime import datetime
 from base64 import b64decode
-from lib.jinja2 import Environment, FileSystemLoader
 
-from lib import sh
-from lib.helpers import (
-    create_dir, install_packages, can_connect, parent_dir
+# Add ./lib to path
+lib_dir = path.join(path.dirname(__file__), 'lib')
+sys.path.append(lib_dir)
+
+import sh
+from jinja2 import Environment, FileSystemLoader
+from helpers import (
+    create_dir, install_packages, can_connect, parent_dir, run
 )
-from lib.charmhelpers.core.host import service_restart
-from lib.charmhelpers.core.hookenv import config
-from lib.charmhelpers.core.host import log
+from charmhelpers.core.host import service_restart
+from charmhelpers.core.hookenv import config
+from charmhelpers.core.host import log
 
 # Settings
 install_parent = "/srv"
@@ -55,17 +60,16 @@ def extract_app_files():
         )
     )
 
-    sh.rm(tempfile_path, f=True)
+    run(sh.rm, tempfile_path, f=True)
 
     urlretrieve(url, tempfile_path)
 
     # Extract files into install dir
-    log(
-        sh.tar(
-            file=tempfile_path,
-            directory=install_path,
-            strip=1, z=True, x=True
-        )
+    run(
+        sh.tar,
+        file=tempfile_path,
+        directory=install_path,
+        strip="1", z=True, x=True
     )
 
     return timestamp
@@ -121,13 +125,13 @@ def pip_dependencies(app_path):
             )
         )
 
-        log(sh.pip.install(r=requirements_path))
+        run(sh.pip.install, r=requirements_path)
 
     # Install dependencies in dependencies directory
     if install_dependencies:
         log("Installing pip dependencies from {0}".format(dependencies_path))
         packages = sh.glob(path.join(dependencies_path, '*'))
-        log(sh.pip.install(packages, upgrade=True))
+        run(sh.pip.install, packages, upgrade=True)
 
 
 def gem_dependencies(app_path):
@@ -163,18 +167,20 @@ def gem_dependencies(app_path):
 
         cwd = getcwd()
         chdir(app_path)
-        log(sh.bundle.update())
+        run(sh.bundle.update)
         chdir(cwd)
 
     # Install gem dependencies in dependencies directory
     if install_dependencies:
         log("Installing gem dependencies from {0}".format(dependencies_path))
         packages = sh.glob(path.join(dependencies_path, '*'))
-        log(sh.gem.install(packages))
+        run(sh.gem.install, packages)
 
 
 def setup_apache_wsgi(timestamp):
     install_packages('apache2 libapache2-mod-wsgi')
+
+    run(sh.a2enmod, "ssl", "proxy_http")
 
     available_path = path.join(sites_available_dir, timestamp)
 
@@ -232,12 +238,11 @@ def copy_ssl_certificates(timestamp):
         with open(certificate_path, 'w') as certificate:
             certificate.write(certificate_content)
     else:
-        log(
-            sh.openssl.req(
-                "-new", "-nodes", "-x509", "-newkey", "rsa:2048", "-days",
-                "365", "-keyout", keyfile_path, "-out", certificate_path,
-                "-config", config_path
-            )
+        run(
+            sh.openssl.req,
+            "-new", "-nodes", "-x509", "-newkey", "rsa:2048", "-days",
+            "365", "-keyout", keyfile_path, "-out", certificate_path,
+            "-config", config_path
         )
 
     return (keyfile_path, certificate_path)
@@ -257,17 +262,17 @@ def set_current(timestamp):
         )
     )
 
-    log(sh.rm(live_link_path, force=True))
-    log(sh.ln(app_path, live_link_path, symbolic=True))
+    run(sh.rm, live_link_path, force=True)
+    run(sh.ln, app_path, live_link_path, symbolic=True)
 
     site_to_enable = path.join(sites_available_dir, timestamp)
 
     site_links = sh.glob(path.join(sites_enabled_dir, '*'))
 
     # Delete existing site links
-    log(sh.rm(site_links, f=True))
+    run(sh.rm, site_links, f=True)
 
     # Add our link into sites-enabled
-    log(sh.ln(site_to_enable, sites_enabled_path, s=True))
+    run(sh.ln, site_to_enable, sites_enabled_path, s=True)
 
     service_restart("apache2")
