@@ -46,11 +46,11 @@ options:
             - set this to blank to prevent installing from PyPi
 
     pip_dependencies_path:
-        default: ""
+        default: "dependencies/pip"
         description: "A path (within the project) to python dependencies"
 
     gem_dependencies_path:
-        default: ""
+        default: "dependencies/ruby"
         description: "A path (within the project) to ruby dependencies"
 
     custom_apache_conf_template_path:
