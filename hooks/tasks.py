@@ -2,7 +2,7 @@
 
 import sys
 from urllib import urlretrieve
-from os import path, getcwd, chdir
+from os import path, getcwd, chdir, environ
 from datetime import datetime
 from base64 import b64decode
 
@@ -15,7 +15,7 @@ from jinja2 import Environment, FileSystemLoader
 from helpers import (
     create_dir, install_packages, can_connect, parent_dir, run
 )
-from charmhelpers.core.host import service_restart
+from charmhelpers.core.host import service_restart, service_stop
 from charmhelpers.core.hookenv import config
 from charmhelpers.core.host import log
 
@@ -275,4 +275,19 @@ def set_current(timestamp):
     # Add our link into sites-enabled
     run(sh.ln, site_to_enable, sites_enabled_path, s=True)
 
+
+def start():
     service_restart("apache2")
+
+
+def stop():
+    service_stop("apache2")
+
+
+def setup_mongo_relation():
+    hostname = sh.unit_get('public-address', format='json')
+    port = sh.unit_get('port', format='json')
+    sh.relation_set('hostname=%s' % hostname, format='json')
+    sh.relation_set('port=%s' % port, format='json')
+    environ['MONGODB_HOST'] = hostname
+    environ['MONGODB_HOST'] = port

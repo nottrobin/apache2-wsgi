@@ -12,7 +12,7 @@ def create_dir(dir_path):
 
     if not path.exists(dir_path):
         log('Creating directory: {0}'.format(dir_path))
-        log(sh.mkdir(dir_path, p=True))
+        run(sh.mkdir, dir_path, p=True)
 
 
 def can_connect(url):
@@ -42,7 +42,7 @@ def install_packages(packages):
 
     if packages:
         log("Installing apt packages: {0}".format(packages))
-        log(sh.apt_get.install(packages.split(), y=True))
+        run(sh.apt_get.install, packages.split(), y=True)
 
 
 def parent_dir(dir_path):
