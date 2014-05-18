@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import sys
+import json
 from urllib import urlretrieve
-from os import path, getcwd, chdir, environ
+from os import path, getcwd, chdir
 from datetime import datetime
 from base64 import b64decode
 
@@ -18,6 +19,8 @@ from helpers import (
 from charmhelpers.core.host import service_restart, service_stop
 from charmhelpers.core.hookenv import config
 from charmhelpers.core.host import log
+from charmhelpers.contrib.openstack.utils import save_script_rc
+
 
 # Settings
 install_parent = "/srv"
@@ -206,6 +209,14 @@ def setup_apache_wsgi(timestamp):
     with open(available_path, 'w') as conf:
         conf.write(conf_content)
 
+    # Add line to bottom of envvars to source scriptrc
+    apache_env_file = path.join(apache_dir, 'envvars')
+    source_file_path = path.join(charm_dir, 'scripts/scriptrc')
+    source_command = '. {0}'.format(source_file_path)
+    with open(apache_env_file, 'a') as env_file:
+        env_file.write('# Added by apache2-wsgi charm:\n')
+        env_file.write(source_command)
+
 
 def copy_ssl_certificates(timestamp):
     """
@@ -276,8 +287,9 @@ def set_current(timestamp):
     run(sh.ln, site_to_enable, sites_enabled_path, s=True)
 
 
-def start():
+def restart():
     service_restart("apache2")
+    log('Restarted apache')
 
 
 def stop():
@@ -285,9 +297,28 @@ def stop():
 
 
 def setup_mongo_relation():
-    hostname = sh.unit_get('public-address', format='json')
-    port = sh.unit_get('port', format='json')
-    sh.relation_set('hostname=%s' % hostname, format='json')
-    sh.relation_set('port=%s' % port, format='json')
-    environ['MONGODB_HOST'] = hostname
-    environ['MONGODB_HOST'] = port
+    log('setting up relation: mongodb')
+
+    # Get relation details
+    host = sh.unit_get('public-address')
+    port = sh.config_get('port') or '27017'
+
+    # Set the relation in this juju instance
+    sh.relation_set('hostname={0}'.format(host))
+    sh.relation_set('port={0}'.format(port))
+
+    # Compile into mongo URI
+    mongo_uri = 'mongodb://{host}:{port}/'.format(
+        host=str(host).rstrip(),
+        port=str(port).rstrip()
+    )
+
+    # Setup environment variable
+    env = {'MONGODB_URI': mongo_uri}
+
+    log('setting environment variable: {0}'.format(json.dumps(env)))
+
+    # Save into scripts/scriptrc
+    save_script_rc(**env)
+
+    restart()

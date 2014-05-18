@@ -2,4 +2,4 @@
 
 import tasks
 
-tasks.start()
+tasks.restart()
