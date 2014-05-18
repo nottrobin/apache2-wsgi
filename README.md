@@ -23,7 +23,7 @@ You'll need a link to a zipped tarball of your project, and then to include that
 
 
 ``` yaml
-# config.yaml
+# example config.yaml
 
 apache2-wsgi:
     app_tgz_url: "https://github.com/username/repo/archive/master.tar.gz"
@@ -36,6 +36,17 @@ Then deploy this charm with the config file:
 ``` bash
 juju deploy --config=config.yaml local:trusty/apache-wsgi
 ```
+
+### Mongodb
+
+If your app wants to make use of a [MongoDB](http://www.mongodb.org/) server, you can do that by adding a relation:
+
+``` bash
+juju deploy mongodb
+juju add-relation apache-wsgi mongodb
+``` 
+
+Now the MongoDB URI for your application to use will be available in the environment variable `MONGODB_URI`.
 
 ### Configuring
 
