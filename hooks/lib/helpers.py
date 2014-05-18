@@ -57,4 +57,7 @@ def run(sh_function, *args, **kwargs):
     Run command with logging
     """
 
-    log(str(sh_function(*args, **kwargs)))
+    output = sh_function(*args, **kwargs)
+
+    if output:
+        log(str(output))
