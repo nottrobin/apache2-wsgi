@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import sys
-import json
 from urllib import urlretrieve
 from os import path, getcwd, chdir
 from datetime import datetime
@@ -197,6 +196,7 @@ def setup_apache_wsgi(timestamp):
 
     conf_content = conf_template.render({
         'wsgi_path': wsgi_path,
+        'wsgi_app_name': config('wsgi_app_name'),
         'wsgi_dir': path.dirname(wsgi_path),
         'wsgi_file': path.basename(wsgi_path),
         'static_url_path': config('static_url_path'),
@@ -316,7 +316,7 @@ def setup_mongo_relation():
     # Setup environment variable
     env = {'MONGODB_URI': mongo_uri}
 
-    log('setting environment variable: {0}'.format(json.dumps(env)))
+    log('setting environment variable: {0}'.format(env))
 
     # Save into scripts/scriptrc
     save_script_rc(**env)

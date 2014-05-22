@@ -10,6 +10,10 @@ options:
         default: "app.py"
         description: "The location (within the project) of the WSGI script"
 
+    wsgi_app_name:
+        default: "app"
+        description: "The name of the application inside the WSGI file"
+
     apt_dependencies:
         default: ""
         description: "Space separated list of extra apt packages to be installed."
@@ -50,9 +54,5 @@ options:
         description: "A path (within the project) to python dependencies"
 
     gem_dependencies_path:
-        default: "dependencies/ruby"
+        default: "dependencies/gem"
         description: "A path (within the project) to ruby dependencies"
-
-    custom_apache_conf_template_path:
-        default: ""
-        description: "A path to a custom template file for apache configuration"
