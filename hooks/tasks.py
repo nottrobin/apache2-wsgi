@@ -33,7 +33,7 @@ timefile_name = '.timestamp.txt'
 
 def install():
     # Install charm dependencies
-    install_packages('apache2 python-pip libapache2-mod-wsgi')
+    install_packages('python-pip apache2 libapache2-mod-wsgi')
 
     # Make sure extra packages are installed
     install_packages(config('apt_dependencies'))
