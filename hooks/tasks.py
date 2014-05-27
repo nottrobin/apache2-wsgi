@@ -138,7 +138,7 @@ def pip_dependencies(app_path):
 
     # Read paths from config
     requirements_path = path.join(app_path, config('pip_requirements_path'))
-    dependencies_path = path.join(app_path, config('pip_dependencies_path'))
+    dependencies_path = path.join(app_path, config('pip_cache_path'))
 
     if path.isfile(requirements_path):
         # Install from requirements file if possible
