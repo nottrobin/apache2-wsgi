@@ -28,12 +28,43 @@ apache_dir = "/etc/apache2"
 sites_enabled_dir = path.join(apache_dir, "sites-enabled")
 sites_enabled_path = path.join(sites_enabled_dir, "wsgi-app.conf")
 sites_available_dir = path.join(apache_dir, "sites-available")
+timefile_name = '.timestamp.txt'
 
 
 def install():
-    # Save timestamp in a file which we'll delete at the end
-    # In case the install fails at any point, it can continue where it left off
-    timefile_name = '.timestamp.txt'
+    # Install charm dependencies
+    install_packages('apache2', 'python-pip', 'libapache2-mod-wsgi')
+
+    # Make sure extra packages are installed
+    install_packages(config('apt_dependencies'))
+
+
+def config_changed():
+    # Make sure required packages are installed
+    install_packages(config('apt_dependencies'))
+
+    app_tgz_url = config('app_tgz_url')
+
+    if app_tgz_url:
+        timestamp = get_timestamp()
+
+        extract_app_files(app_tgz_url, timestamp)
+
+        install_dependencies(timestamp)
+
+        save_environment_variables_string(config('environment_variables'))
+
+        setup_apache_wsgi(timestamp)
+
+        set_current(timestamp)
+
+
+def get_timestamp():
+    """
+    Generate a timestamp and save it in a file
+    which can be removed with remove_timestamp
+    In case the install fails at any point, it can continue where it left off
+    """
 
     # Generate timestamp
     timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
@@ -47,26 +78,18 @@ def install():
         with open(timefile_name, 'w') as timefile:
             timefile.write(timestamp)
 
-    extract_app_files(timestamp)
+    return timestamp
 
-    install_dependencies(timestamp)
 
-    save_environment_variables_string(config('environment_variables'))
-
-    setup_apache_wsgi(timestamp)
-
-    set_current(timestamp)
-
+def remove_timestamp():
     remove(timefile_name)
 
 
-def extract_app_files(timestamp):
+def extract_app_files(url, timestamp):
     """
     Extract the app zip file
     into an install directory (specified in config)
     """
-
-    url = config('app_tgz_url')
 
     install_path = path.join(install_parent, timestamp)
 
@@ -104,7 +127,6 @@ def install_dependencies(timestamp):
 
     app_path = path.join(install_parent, timestamp)
 
-    install_packages(config('apt_dependencies'))
     pip_dependencies(app_path)
 
 
@@ -119,9 +141,6 @@ def pip_dependencies(app_path):
     dependencies_path = path.join(app_path, config('pip_dependencies_path'))
 
     if path.isfile(requirements_path):
-        # Install pip
-        install_packages('python-pip')
-
         # Install from requirements file if possible
         log("Installing pip requirements from {0}".format(requirements_path))
 
@@ -135,8 +154,6 @@ def pip_dependencies(app_path):
 
 
 def setup_apache_wsgi(timestamp):
-    install_packages('apache2 libapache2-mod-wsgi')
-
     run(sh.a2enmod, "ssl", "proxy_http")
 
     available_path = path.join(sites_available_dir, timestamp)
