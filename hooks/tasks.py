@@ -2,9 +2,9 @@
 
 import sys
 from urllib import urlretrieve
-from os import path, getcwd, chdir
-from datetime import datetime
+from os import path, listdir, remove
 from base64 import b64decode
+from datetime import datetime
 
 # Add ./lib to path
 lib_dir = path.join(path.dirname(__file__), 'lib')
@@ -12,13 +12,10 @@ sys.path.append(lib_dir)
 
 import sh
 from jinja2 import Environment, FileSystemLoader
-from helpers import (
-    create_dir, install_packages, can_connect, parent_dir, run
-)
+from helpers import create_dir, install_packages, parent_dir, run
 from charmhelpers.core.host import service_restart, service_stop
 from charmhelpers.core.hookenv import config
 from charmhelpers.core.host import log
-from charmhelpers.contrib.openstack.utils import save_script_rc
 
 
 # Settings
@@ -26,7 +23,7 @@ install_parent = "/srv"
 live_link_name = "current"
 live_link_path = path.join(install_parent, live_link_name)
 charm_dir = parent_dir(__file__)
-timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+scriptrc_path = path.join(charm_dir, 'scripts/scriptrc')
 apache_dir = "/etc/apache2"
 sites_enabled_dir = path.join(apache_dir, "sites-enabled")
 sites_enabled_path = path.join(sites_enabled_dir, "wsgi-app.conf")
@@ -34,16 +31,36 @@ sites_available_dir = path.join(apache_dir, "sites-available")
 
 
 def install():
-    timestamp = extract_app_files()
+    # Save timestamp in a file which we'll delete at the end
+    # In case the install fails at any point, it can continue where it left off
+    timefile_name = '.timestamp.txt'
+
+    # Generate timestamp
+    timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+
+    if path.exists(timefile_name):
+        # Read existing timestamp
+        with open(timefile_name, 'r') as timefile:
+            timestamp = timefile.read().rstrip()
+    else:
+        # Save generate timestamp into file
+        with open(timefile_name, 'w') as timefile:
+            timefile.write(timestamp)
+
+    extract_app_files(timestamp)
 
     install_dependencies(timestamp)
+
+    save_environment_variables_string(config('environment_variables'))
 
     setup_apache_wsgi(timestamp)
 
     set_current(timestamp)
 
+    remove(timefile_name)
 
-def extract_app_files():
+
+def extract_app_files(timestamp):
     """
     Extract the app zip file
     into an install directory (specified in config)
@@ -52,29 +69,30 @@ def extract_app_files():
     url = config('app_tgz_url')
 
     install_path = path.join(install_parent, timestamp)
-    tempfile_path = '/tmp/wsgi-app-package.tgz'
 
-    create_dir(install_path)
+    # Unless install dir already exists, extract it
+    if not (path.exists(install_path) and listdir(install_path)):
+        tempfile_path = '/tmp/wsgi-app-package.tgz'
 
-    log(
-        "Extracting '{url}' to '{dir}'".format(
-            url=url, dir=install_path
+        create_dir(install_path)
+
+        log(
+            "Extracting '{url}' to '{dir}'".format(
+                url=url, dir=install_path
+            )
         )
-    )
 
-    run(sh.rm, tempfile_path, f=True)
+        run(sh.rm, tempfile_path, f=True)
 
-    urlretrieve(url, tempfile_path)
+        urlretrieve(url, tempfile_path)
 
-    # Extract files into install dir
-    run(
-        sh.tar,
-        file=tempfile_path,
-        directory=install_path,
-        strip="1", z=True, x=True
-    )
-
-    return timestamp
+        # Extract files into install dir
+        run(
+            sh.tar,
+            file=tempfile_path,
+            directory=install_path,
+            strip="1", z=True, x=True
+        )
 
 
 def install_dependencies(timestamp):
@@ -88,7 +106,6 @@ def install_dependencies(timestamp):
 
     install_packages(config('apt_dependencies'))
     pip_dependencies(app_path)
-    gem_dependencies(app_path)
 
 
 def pip_dependencies(app_path):
@@ -98,85 +115,23 @@ def pip_dependencies(app_path):
     """
 
     # Read paths from config
-    requirements_file = config('pip_requirements_path')
-    dependencies_directory = config('pip_dependencies_path')
-    download_dependencies = config('download_dependencies')
-    requirements_path = path.join(app_path, requirements_file)
-    dependencies_path = path.join(app_path, dependencies_directory)
+    requirements_path = path.join(app_path, config('pip_requirements_path'))
+    dependencies_path = path.join(app_path, config('pip_dependencies_path'))
 
-    install_requirements = (
-        requirements_file and
-        download_dependencies and
-        path.exists(requirements_path) and
-        can_connect('http://pypi.python.org')
-    )
-    install_dependencies = (
-        dependencies_directory and
-        path.exists(dependencies_path)
-    )
-
-    # Install pip if needed
-    if install_requirements or install_dependencies:
+    if path.isfile(requirements_path):
+        # Install pip
         install_packages('python-pip')
 
-    # Install from requirements file if possible
-    if install_requirements:
-        log(
-            "Installing pip requirements from {0}".format(
-                requirements_path
-            )
+        # Install from requirements file if possible
+        log("Installing pip requirements from {0}".format(requirements_path))
+
+        # Install dependencies in dependencies directory
+        run(
+            sh.pip.install,
+            r=requirements_path,
+            find_links=dependencies_path,  # Path to local package files
+            no_index=config('pip_no_index')  # Use PyPi?
         )
-
-        run(sh.pip.install, r=requirements_path)
-
-    # Install dependencies in dependencies directory
-    if install_dependencies:
-        log("Installing pip dependencies from {0}".format(dependencies_path))
-        packages = sh.glob(path.join(dependencies_path, '*'))
-        run(sh.pip.install, packages, upgrade=True)
-
-
-def gem_dependencies(app_path):
-    """
-    Install gem dependencies from Gemfile
-    or from the dependencies directory
-    """
-
-    # Read paths from config
-    dependencies_directory = config('gem_dependencies_path')
-    gemfile_path = path.join(app_path, "Gemfile")
-    download_dependencies = config('download_dependencies')
-    dependencies_path = path.join(app_path, dependencies_directory)
-
-    install_dependencies = (
-        dependencies_directory and
-        path.exists(dependencies_path)
-    )
-    update_bundler = (
-        download_dependencies and
-        path.exists(gemfile_path) and
-        can_connect('http://rubygems.org')
-    )
-
-    if install_dependencies or update_bundler:
-        install_packages('ruby-dev')
-
-    # Install from requirements file if possible
-    if update_bundler:
-        install_packages('bundler')
-
-        log("Updating bundle")
-
-        cwd = getcwd()
-        chdir(app_path)
-        run(sh.bundle.update)
-        chdir(cwd)
-
-    # Install gem dependencies in dependencies directory
-    if install_dependencies:
-        log("Installing gem dependencies from {0}".format(dependencies_path))
-        packages = sh.glob(path.join(dependencies_path, '*'))
-        run(sh.gem.install, packages)
 
 
 def setup_apache_wsgi(timestamp):
@@ -211,11 +166,21 @@ def setup_apache_wsgi(timestamp):
 
     # Add line to bottom of envvars to source scriptrc
     apache_env_file = path.join(apache_dir, 'envvars')
+
     source_file_path = path.join(charm_dir, 'scripts/scriptrc')
     source_command = '. {0}'.format(source_file_path)
-    with open(apache_env_file, 'a') as env_file:
-        env_file.write('# Added by apache2-wsgi charm:\n')
-        env_file.write(source_command)
+
+    comment = '# scriptrc link added by apache2-wsgi charm:'
+
+    comment_exists = False
+
+    with open(apache_env_file) as env_file_read:
+        comment_exists = comment in env_file_read.read()
+
+    if not comment_exists:
+        with open(apache_env_file, 'a') as env_file:
+            env_file.write(comment + '\n')
+            env_file.write(source_command + '\n')
 
 
 def copy_ssl_certificates(timestamp):
@@ -296,29 +261,43 @@ def stop():
     service_stop("apache2")
 
 
-def setup_mongo_relation():
-    log('setting up relation: mongodb')
+def setup_http_server():
+    public_address = sh.unit_get('public-address').rstrip()
 
-    # Get relation details
-    host = sh.unit_get('public-address')
-    port = sh.config_get('port') or '27017'
+    log('setting up "http-server" with address "{0}"'.format(public_address))
 
-    # Set the relation in this juju instance
-    sh.relation_set('hostname={0}'.format(host))
-    sh.relation_set('port={0}'.format(port))
-
-    # Compile into mongo URI
-    mongo_uri = 'mongodb://{host}:{port}/'.format(
-        host=str(host).rstrip(),
-        port=str(port).rstrip()
-    )
-
-    # Setup environment variable
-    env = {'MONGODB_URI': mongo_uri}
-
-    log('setting environment variable: {0}'.format(env))
-
-    # Save into scripts/scriptrc
-    save_script_rc(**env)
+    sh.relation_set('hostname={0}'.format(public_address))
 
     restart()
+
+
+def store_relation_hostname_in_env(environment_variable_name):
+    # Get the hostname of the relation
+    relation_hostname = sh.relation_get('hostname').rstrip()
+
+    # Save it as an environment variable
+    save_environment_variable(environment_variable_name, relation_hostname)
+
+    restart()
+
+
+def save_environment_variable(name, value):
+    variables_string = '{name}={value}'.format(name=name, value=value)
+
+    save_environment_variables_string(variables_string)
+
+
+def save_environment_variables_string(env_vars):
+    log('setting environment variable: {0}'.format(env_vars))
+
+    export_string = 'export {0}\n'.format(env_vars)
+
+    already_set = False
+
+    with open(scriptrc_path) as scriptrc_read:
+        already_set = export_string in scriptrc_read.read()
+
+    # Save into scripts/scriptrc
+    if not already_set:
+        with open(scriptrc_path, 'a') as scriptrc:
+            scriptrc.write(export_string)
