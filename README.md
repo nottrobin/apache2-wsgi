@@ -6,36 +6,21 @@ This is a [Juju](https://juju.ubuntu.com/) [charm](https://juju.ubuntu.com/charm
 Usage
 ---
 
-Hopefully, this charm will eventually be included in the [Juju charm repository](https://jujucharms.com/), so you can use it with simply `juju deploy apache-wsgi`, but for now you'll need to clone it to use it:
-
-### Cloning
-
-Clone the charm into your `trusty` folder within your charms directory, with the name `django-legal`, e.g.:
+### Deploy the charm
 
 ``` bash
-mkdir -p ~/charms/trusty && cd charms
-git clone git@github.com:nottrobin/apache-wsgi-charm.git trusty/apache-wsgi
+juju deploy ~nottrobin/trusty/apache2-wsgi
 ```
 
-### Preparing
+### Add a project
 
-You'll need a link to a zipped tarball of your project, and then to include that in a charm config file along with the other options:
+The charm will just show a basic Apache2 welcome page, until you give it a URL from which to download a correctly configured WSGI app:
 
-
-``` yaml
-# example config.yaml
-
-apache2-wsgi:
-    app_tgz_url: "https://github.com/username/repo/archive/master.tar.gz"
-    wsgi_file_path: "django-app/wsgi.py"
-    download_dependencies: False
+```
+juju set app_tgz_url=http://example.com/my-project.tgz
 ```
 
-Then deploy this charm with the config file:
-
-``` bash
-juju deploy --config=config.yaml local:trusty/apache-wsgi
-```
+It will then download the project, extract it, and restart Apache, attempting to run it.
 
 ### Mongodb
 
@@ -50,4 +35,8 @@ Now the MongoDB URI for your application to use will be available in the environ
 
 ### Configuring
 
-For a full list of config options, see the default config options in [`config.yaml`](config.yaml).
+By default, the WSGI file (`wsgi_file_path`) is expected to be at `[project]/app.py`, and the application name (`wsgi_app_name`) is expected to be `app`. This is in line with [Flask](http://flask.pocoo.org/) defaults.
+
+Any required python modules should be listed in `[project]/requirements.txt` (`pip_requirements_path`) and if you want pip to install them from local files instead of from [PyPi](https://pypi.python.org/), include the local packages in `[project]/dependencies/pip` (`pip_dependencies_path`).
+
+For a full list of configuration options, see [`config.yaml`](config.yaml).
