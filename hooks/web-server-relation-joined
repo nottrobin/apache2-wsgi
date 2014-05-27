@@ -1,0 +1,5 @@
+#!/usr/bin/env python
+
+import tasks
+
+tasks.setup_http_server()

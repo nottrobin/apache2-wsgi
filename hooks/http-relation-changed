@@ -1,0 +1,5 @@
+#!/usr/bin/env python
+
+import tasks
+
+tasks.store_relation_hostname_in_env('HTTP_SERVER_HOSTNAME')
