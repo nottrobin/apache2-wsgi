@@ -268,6 +268,9 @@ def set_current(timestamp):
     # Add our link into sites-enabled
     run(sh.ln, site_to_enable, sites_enabled_path, s=True)
 
+    # Restart apache
+    restart()
+
 
 def restart():
     service_restart("apache2")
