@@ -46,8 +46,8 @@ options:
             A path (within the project) to pip requirements file
             - set this to blank to prevent installing from PyPi
 
-    pip_dependencies_path:
-        default: "dependencies/pip"
+    pip_cache_path:
+        default: "pip-cache"
         description: "A path (within the project) to python dependencies"
 
     environment_variables:

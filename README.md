@@ -37,6 +37,6 @@ Now the MongoDB URI for your application to use will be available in the environ
 
 By default, the WSGI file (`wsgi_file_path`) is expected to be at `[project]/app.py`, and the application name (`wsgi_app_name`) is expected to be `app`. This is in line with [Flask](http://flask.pocoo.org/) defaults.
 
-Any required python modules should be listed in `[project]/requirements.txt` (`pip_requirements_path`) and if you want pip to install them from local files instead of from [PyPi](https://pypi.python.org/), include the local packages in `[project]/dependencies/pip` (`pip_dependencies_path`).
+Any required python modules should be listed in `[project]/requirements.txt` (`pip_requirements_path`) and if you want pip to install them from local files instead of from [PyPi](https://pypi.python.org/), include the local packages in `[project]/pip-cache` (`pip_cache_path`).
 
 For a full list of configuration options, see [`config.yaml`](config.yaml).
