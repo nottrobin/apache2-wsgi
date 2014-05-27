@@ -9,10 +9,14 @@ description: |
   Serve the app on ports 80 and 443
 categories:
   - app-servers
-requires:
-  mongodb:
-    interface: mongodb
 provides:
   nrpe-external-master:
     interface: nrpe-external-master
     scope: container
+  web-server:
+    interface: http
+requires:
+  http:
+    interface: http
+  mongodb:
+    interface: mongodb

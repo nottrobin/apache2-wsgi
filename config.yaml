@@ -15,15 +15,12 @@ options:
         description: "The name of the application inside the WSGI file"
 
     apt_dependencies:
-        default: ""
         description: "Space separated list of extra apt packages to be installed."
 
     ssl_keyfile:
-        default: ""
         description: "Base64 encoded keyfile for SSL"
 
     ssl_certificate:
-        default: ""
         description: "Base64 encoded certificate file for SSL"
 
     server_name:
@@ -38,10 +35,10 @@ options:
         default: "static"
         description: "The URL path to access static files"
 
-    download_dependencies:
+    pip_no_index:
         default: False
         type: boolean
-        description: "Try to download python and ruby dependencies?"
+        description: "Prevent pip connecting to Python Package Index to download packages"
 
     pip_requirements_path:
         default: "requirements.txt"
@@ -53,6 +50,6 @@ options:
         default: "dependencies/pip"
         description: "A path (within the project) to python dependencies"
 
-    gem_dependencies_path:
-        default: "dependencies/gem"
-        description: "A path (within the project) to ruby dependencies"
+    environment_variables:
+        type: string
+        description: "A dictionary of environment variables to be set in the instance"
