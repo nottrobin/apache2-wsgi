@@ -1,0 +1,22 @@
+#!/bin/bash
+set -eux
+
+NAGIOS_ENVIRONMENT=$(config-get nagios_environment)
+NAGIOS_HOSTNAME="isd-${NAGIOS_ENVIRONMENT}-${JUJU_UNIT_NAME//\//-}"
+SITE_NAME=$(unit-get public-address)
+CHECK_URI=$(config-get nagios_check_uri)
+CHECK_STRING=$(config-get nagios_check_string)
+
+echo "# ${SITE_NAME} http check" > /etc/nagios/nrpe.d/check_fenchurch.cfg
+echo "command[check_wsgi_server]=/usr/lib/nagios/plugins/check_http -H ${SITE_NAME} -I 127.0.0.1 -p 80 -u '$(CHECK_URI)' -e 200 -s '$(CHECK_STRING)'" >> /etc/nagios/nrpe.d/check_wsgi_server.cfg
+
+NRPE_EXPORT="define service {
+    use                             active-service
+    host_name                       ${NAGIOS_HOSTNAME}
+    service_description             ${NAGIOS_HOSTNAME} apache2-wsgi http check
+    check_command                   check_nrpe!check_wsgi_server
+    servicegroups                   isd-${NAGIOS_ENVIRONMENT},
+}"
+echo "$NRPE_EXPORT" > /var/lib/nagios/export/service__${NAGIOS_HOSTNAME}_check_wsgi_server.cfg
+
+/etc/init.d/nagios-nrpe-server reload

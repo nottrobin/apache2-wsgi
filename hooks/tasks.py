@@ -48,13 +48,13 @@ def config_changed():
     if app_tgz_url:
         timestamp = get_timestamp()
 
-        extract_app_files(app_tgz_url, timestamp)
+        app_dir = extract_app_files(app_tgz_url, timestamp)
 
         install_dependencies(timestamp)
 
         save_environment_variables_string(config('environment_variables'))
 
-        setup_apache_wsgi(timestamp)
+        setup_apache_wsgi(timestamp, app_dir)
 
         set_current(timestamp)
 
@@ -117,6 +117,8 @@ def extract_app_files(url, timestamp):
             strip="1", z=True, x=True
         )
 
+    return install_path
+
 
 def install_dependencies(timestamp):
     """
@@ -153,16 +155,14 @@ def pip_dependencies(app_path):
         )
 
 
-def setup_apache_wsgi(timestamp):
+def setup_apache_wsgi(timestamp, app_dir):
     run(sh.a2enmod, "ssl", "proxy_http")
 
     available_path = path.join(sites_available_dir, timestamp)
 
     (keyfile_path, certificate_path) = copy_ssl_certificates(timestamp)
 
-    template_dir = path.join(charm_dir, 'templates')
-    jinja_env = Environment(loader=FileSystemLoader(template_dir))
-    conf_template = jinja_env.get_template('wsgi-app.conf')
+    conf_template = apache_conf_template(app_dir)
 
     wsgi_path = path.join(live_link_path, config('wsgi_file_path'))
 
@@ -200,6 +200,25 @@ def setup_apache_wsgi(timestamp):
             env_file.write(source_command + '\n')
 
 
+def apache_conf_template(app_dir):
+    """
+    Return the template from which to generate the apache conf
+    Either from the default template or a provided custom one
+    """
+
+    # Default
+    jinja_env = Environment(loader=FileSystemLoader(charm_dir))
+    template = jinja_env.get_template('templates/wsgi-app.conf')
+
+    # Custom
+    custom_conf_path = config('apache_conf_path')
+    if custom_conf_path:
+        jinja_env = Environment(loader=FileSystemLoader(app_dir))
+        template = jinja_env.get_template(custom_conf_path)
+
+    return template
+
+
 def copy_ssl_certificates(timestamp):
     """
     Copy either the default self-signed certificate
@@ -209,10 +228,14 @@ def copy_ssl_certificates(timestamp):
     """
 
     certs_dir = '/etc/ssl/certs'
-    app_path = path.join(install_parent, timestamp)
-    keyfile_path = path.join(certs_dir, 'wsgi-app.key')
-    certificate_path = path.join(certs_dir, 'wsgi-app.crt')
-    config_path = path.join(charm_dir, 'ssl/wsgi-app.conf')
+    keyfile_path = path.join(
+        certs_dir,
+        'wsgi-app.{time}.key'.format(timestamp)
+    )
+    certificate_path = path.join(
+        certs_dir,
+        'wsgi-app.{time}.crt'.format(timestamp)
+    )
 
     custom_keyfile = config('ssl_keyfile')
     custom_certificate = config('ssl_certificate')
@@ -222,8 +245,8 @@ def copy_ssl_certificates(timestamp):
     log('Saving certificate files')
 
     if custom_keyfile and custom_certificate:
-        keyfile_content = b64decode(path.join(app_path, custom_keyfile))
-        certificate_content = b64decode(path.join(app_path, custom_certificate))
+        keyfile_content = b64decode(custom_keyfile)
+        certificate_content = b64decode(custom_certificate)
 
         with open(keyfile_path, 'w') as keyfile:
             keyfile.write(keyfile_content)
@@ -231,6 +254,8 @@ def copy_ssl_certificates(timestamp):
         with open(certificate_path, 'w') as certificate:
             certificate.write(certificate_content)
     else:
+        config_path = path.join(charm_dir, 'ssl/wsgi-app.conf')
+
         run(
             sh.openssl.req,
             "-new", "-nodes", "-x509", "-newkey", "rsa:2048", "-days",
