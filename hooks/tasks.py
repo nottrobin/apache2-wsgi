@@ -230,11 +230,11 @@ def copy_ssl_certificates(timestamp):
     certs_dir = '/etc/ssl/certs'
     keyfile_path = path.join(
         certs_dir,
-        'wsgi-app.{time}.key'.format(timestamp)
+        'wsgi-app.{0}.key'.format(timestamp)
     )
     certificate_path = path.join(
         certs_dir,
-        'wsgi-app.{time}.crt'.format(timestamp)
+        'wsgi-app.{0}.crt'.format(timestamp)
     )
 
     custom_keyfile = config('ssl_keyfile')
