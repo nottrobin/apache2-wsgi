@@ -18,20 +18,9 @@ options:
         description: "Space separated list of extra apt packages to be installed."
 
     apache_conf_path:
-        default: "templates/wsgi-app.conf"
         description: |
-            Path within the project to an apache configuration template
-            The template should be based off [charm]/templates/wsgi-app.conf
-
-    nagios_check_uri:
-        default: "/"
-        description: |
-            Relative URI for nagios to check against
-            Nagios will expect a 200 status and a string, set in `nagios_check_string`
-
-    nagios_check_string:
-        default: ""
-        description: The string for nagios to check is in the `nagios_check_uri` page
+            Path within the project to a custom apache configuration template
+            Defaults to using the charm's template at [charm]/templates/wsgi-app.conf
 
     ssl_keyfile:
         description: "Base64 encoded keyfile for SSL"
@@ -68,6 +57,16 @@ options:
 
     environment_variables:
         description: "A dictionary of environment variables to be set in the instance"
+
+    nagios_check_uri:
+        default: "/"
+        description: |
+            Relative URI for nagios to check against
+            Nagios will expect a 200 status and a string, set in `nagios_check_string`
+
+    nagios_check_string:
+        default: ""
+        description: The string for nagios to check is in the `nagios_check_uri` page
 
     nagios_environment:
         default: "wsgi-apps"
